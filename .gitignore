@@ -1,0 +1,7 @@
+# 子仓库目录（各自独立 git 管理，不纳入此仓库）
+smart-campus-server/
+smart-campus-web/
+smart-campus-app/
+
+# macOS
+.DS_Store
