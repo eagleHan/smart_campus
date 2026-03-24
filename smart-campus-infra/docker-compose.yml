@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # ======================== 数据库 ========================
+  mysql:
+    image: mysql:8.0
+    container_name: campus-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: campus@Root123
+      MYSQL_DATABASE: campus
+      MYSQL_USER: campus
+      MYSQL_PASSWORD: campus@123
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+      - ./mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # ======================== 缓存 ========================
+  redis:
+    image: redis:7-alpine
+    container_name: campus-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+  # ======================== 对象存储 ========================
+  minio:
+    image: minio/minio:latest
+    container_name: campus-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: campus-minio
+      MINIO_ROOT_PASSWORD: campus@MinIO123
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+  # ======================== 后端服务 ========================
+  campus-server:
+    image: campus/smart-campus-server:latest
+    container_name: campus-server
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - minio
+    ports:
+      - "48080:48080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=campus
+      - DB_USER=campus
+      - DB_PASS=campus@123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=campus-minio
+      - MINIO_SECRET_KEY=campus@MinIO123
+    volumes:
+      - ./logs:/app/logs
+
+  # ======================== 前端（管理台） ========================
+  campus-web:
+    image: campus/smart-campus-web:latest
+    container_name: campus-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - campus-server
+
+volumes:
+  mysql_data:
+  redis_data:
+  minio_data:
+
+networks:
+  default:
+    name: campus-network
