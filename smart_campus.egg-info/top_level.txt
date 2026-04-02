@@ -1,0 +1,12 @@
+academic_core
+academic_master
+admin_console
+api_gateway
+exam_orchestration
+identity_access
+marking_engine
+oa_collaboration
+org_user
+platform_core
+question_bank
+student_growth
