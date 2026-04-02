@@ -1,0 +1,114 @@
+x-service-base: &service-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_started
+    redis:
+      condition: service_started
+    rabbitmq:
+      condition: service_started
+  environment:
+    APP_ENV: docker
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: 5432
+    POSTGRES_USER: smartcampus
+    POSTGRES_PASSWORD: smartcampus
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    RABBITMQ_HOST: rabbitmq
+    RABBITMQ_PORT: 5672
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: smartcampus
+      POSTGRES_PASSWORD: smartcampus
+      POSTGRES_DB: platform_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  api-gateway:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.api_gateway.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+
+  admin-console:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.admin_console.app.main:app", "--host", "0.0.0.0", "--port", "8010"]
+    ports:
+      - "8010:8010"
+
+  identity-access:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.identity_access.app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "8001:8001"
+
+  org-user:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.org_user.app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+    ports:
+      - "8002:8002"
+
+  academic-master:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.academic_master.app.main:app", "--host", "0.0.0.0", "--port", "8003"]
+    ports:
+      - "8003:8003"
+
+  academic-core:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.academic_core.app.main:app", "--host", "0.0.0.0", "--port", "8004"]
+    ports:
+      - "8004:8004"
+
+  student-growth:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.student_growth.app.main:app", "--host", "0.0.0.0", "--port", "8005"]
+    ports:
+      - "8005:8005"
+
+  oa-collaboration:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.oa_collaboration.app.main:app", "--host", "0.0.0.0", "--port", "8006"]
+    ports:
+      - "8006:8006"
+
+  question-bank:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.question_bank.app.main:app", "--host", "0.0.0.0", "--port", "8007"]
+    ports:
+      - "8007:8007"
+
+  exam-orchestration:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.exam_orchestration.app.main:app", "--host", "0.0.0.0", "--port", "8008"]
+    ports:
+      - "8008:8008"
+
+  marking-engine:
+    <<: *service-base
+    command: ["python", "-m", "uvicorn", "services.marking_engine.app.main:app", "--host", "0.0.0.0", "--port", "8009"]
+    ports:
+      - "8009:8009"
+
+volumes:
+  postgres_data:
