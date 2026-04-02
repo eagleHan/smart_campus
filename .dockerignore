@@ -1,0 +1,13 @@
+.git
+.github
+.vscode
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+.pytest_cache
+.mypy_cache
+frontends
+smart_campus.egg-info
