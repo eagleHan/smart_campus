@@ -1,3 +1,5 @@
+version: "3.8"
+
 x-service-base: &service-base
   build:
     context: .
@@ -5,110 +7,208 @@ x-service-base: &service-base
   restart: unless-stopped
   depends_on:
     postgres:
-      condition: service_started
+      condition: service_healthy
     redis:
-      condition: service_started
+      condition: service_healthy
     rabbitmq:
-      condition: service_started
+      condition: service_healthy
   environment:
-    APP_ENV: docker
+    # 应用环境
+    APP_ENV: ${APP_ENV:-docker}
+    # PostgreSQL 配置
     POSTGRES_HOST: postgres
-    POSTGRES_PORT: 5432
-    POSTGRES_USER: smartcampus
-    POSTGRES_PASSWORD: smartcampus
+    POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    POSTGRES_USER: ${POSTGRES_USER:-smartcampus}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartcampus}
+    POSTGRES_DB: ${POSTGRES_DB:-platform_db}
+    # Redis 配置
     REDIS_HOST: redis
-    REDIS_PORT: 6379
+    REDIS_PORT: ${REDIS_PORT:-6379}
+    # RabbitMQ 配置
     RABBITMQ_HOST: rabbitmq
-    RABBITMQ_PORT: 5672
+    RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+    RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+    RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+  healthcheck:
+    test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:${SERVICE_PORT}/health', timeout=5)"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 10s
 
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
     environment:
-      POSTGRES_USER: smartcampus
-      POSTGRES_PASSWORD: smartcampus
-      POSTGRES_DB: platform_db
+      POSTGRES_USER: ${POSTGRES_USER:-smartcampus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartcampus}
+      POSTGRES_DB: ${POSTGRES_DB:-platform_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartcampus} -d ${POSTGRES_DB:-platform_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    command: redis-server --appendonly yes
 
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management-alpine
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
 
   api-gateway:
     <<: *service-base
+    container_name: smartcampus-api-gateway
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8000
     command: ["python", "-m", "uvicorn", "services.api_gateway.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     ports:
       - "8000:8000"
 
   admin-console:
     <<: *service-base
+    container_name: smartcampus-admin-console
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8010
     command: ["python", "-m", "uvicorn", "services.admin_console.app.main:app", "--host", "0.0.0.0", "--port", "8010"]
     ports:
       - "8010:8010"
 
   identity-access:
     <<: *service-base
+    container_name: smartcampus-identity-access
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8001
     command: ["python", "-m", "uvicorn", "services.identity_access.app.main:app", "--host", "0.0.0.0", "--port", "8001"]
     ports:
       - "8001:8001"
 
   org-user:
     <<: *service-base
+    container_name: smartcampus-org-user
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8002
     command: ["python", "-m", "uvicorn", "services.org_user.app.main:app", "--host", "0.0.0.0", "--port", "8002"]
     ports:
       - "8002:8002"
 
   academic-master:
     <<: *service-base
+    container_name: smartcampus-academic-master
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8003
     command: ["python", "-m", "uvicorn", "services.academic_master.app.main:app", "--host", "0.0.0.0", "--port", "8003"]
     ports:
       - "8003:8003"
 
   academic-core:
     <<: *service-base
+    container_name: smartcampus-academic-core
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8004
     command: ["python", "-m", "uvicorn", "services.academic_core.app.main:app", "--host", "0.0.0.0", "--port", "8004"]
     ports:
       - "8004:8004"
 
   student-growth:
     <<: *service-base
+    container_name: smartcampus-student-growth
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8005
     command: ["python", "-m", "uvicorn", "services.student_growth.app.main:app", "--host", "0.0.0.0", "--port", "8005"]
     ports:
       - "8005:8005"
 
   oa-collaboration:
     <<: *service-base
+    container_name: smartcampus-oa-collaboration
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8006
     command: ["python", "-m", "uvicorn", "services.oa_collaboration.app.main:app", "--host", "0.0.0.0", "--port", "8006"]
     ports:
       - "8006:8006"
 
   question-bank:
     <<: *service-base
+    container_name: smartcampus-question-bank
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8007
     command: ["python", "-m", "uvicorn", "services.question_bank.app.main:app", "--host", "0.0.0.0", "--port", "8007"]
     ports:
       - "8007:8007"
 
   exam-orchestration:
     <<: *service-base
+    container_name: smartcampus-exam-orchestration
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8008
     command: ["python", "-m", "uvicorn", "services.exam_orchestration.app.main:app", "--host", "0.0.0.0", "--port", "8008"]
     ports:
       - "8008:8008"
 
   marking-engine:
     <<: *service-base
+    container_name: smartcampus-marking-engine
+    environment:
+      <<: *service-base
+      SERVICE_PORT: 8009
     command: ["python", "-m", "uvicorn", "services.marking_engine.app.main:app", "--host", "0.0.0.0", "--port", "8009"]
     ports:
       - "8009:8009"
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  default:
+    name: smartcampus-network
+    driver: bridge
