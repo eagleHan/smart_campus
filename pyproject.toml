@@ -8,12 +8,73 @@ version = "0.1.0"
 description = "Smart campus microservice scaffold with separated frontends and unified admin console"
 readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Smart Campus Team"}
+]
+keywords = ["smart-campus", "education", "microservices", "fastapi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
+    # Web Framework
     "fastapi>=0.115.0,<1.0.0",
     "uvicorn[standard]>=0.32.0,<1.0.0",
     "httpx>=0.28.0,<1.0.0",
     "pydantic-settings>=2.6.0,<3.0.0",
+    "python-multipart>=0.0.9",  # 用于文件上传
+    "email-validator>=2.1",     # 用于邮箱验证
+
+    # Database
+    "sqlalchemy>=2.0,<3.0",
+    "asyncpg>=0.29,<1.0",       # PostgreSQL 异步驱动
+    "alembic>=1.13,<2.0",       # 数据库迁移
+
+    # Cache
+    "redis>=5.0,<6.0",
+
+    # Message Queue
+    "aio-pika>=9.0,<10.0",      # RabbitMQ 异步客户端
+
+    # Authentication & Security
+    "python-jose[cryptography]>=3.3,<4.0",  # JWT
+    "passlib[bcrypt]>=1.7,<2.0",            # 密码哈希
+    "python-dotenv>=1.0",                   # 环境变量加载
+
+    # Utilities
+    "orjson>=3.9",              # 高性能 JSON 处理
+    "structlog>=24.1",          # 结构化日志
 ]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "httpx",                    # 用于 TestClient
+    "factory-boy>=3.3",         # 测试数据工厂
+
+    # Code Quality
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+
+    # Documentation
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/smartcampus/smart-campus"
+Documentation = "https://smartcampus.readthedocs.io"
+Repository = "https://github.com/smartcampus/smart-campus"
+Issues = "https://github.com/smartcampus/smart-campus/issues"
 
 [tool.setuptools]
 include-package-data = true
@@ -23,3 +84,39 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["packages", "services"]
+
+# Ruff 配置
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = ["E501"]  # 行长度由 line-length 控制
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# MyPy 配置
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+# Pytest 配置
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
